@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
-#include <string.h>
 
 #include "globals.h"
 #include "randdp.h"
@@ -84,12 +83,11 @@ static int icnvrt(double x, int ipwr2);
 static void vecset(int n, double v[], int iv[], int *nzv, int i, double val);
 //---------------------------------------------------------------------
 
-#define NUM_THREADS 4
+
 int main(int argc, char *argv[])
 {
   int i, j, k, it;
-  
-  //omp_set_num_threads(NUM_THREADS);
+
   double zeta;
   double rnorm;
   double norm_temp1, norm_temp2;
@@ -151,30 +149,21 @@ int main(int argc, char *argv[])
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
       colidx[k] = colidx[k] - firstcol;
     }
-
-    x[j] = 1.0;
-    q[j] = 0.0;
-    z[j] = 0.0;
-    r[j] = 0.0;
-    p[j] = 0.0;
   }
-  x[j] = 1.0;
 
   //---------------------------------------------------------------------
   // set starting vector to (1, 1, .... 1)
   //---------------------------------------------------------------------
-  /*
   for (i = 0; i < NA+1; i++) {
     x[i] = 1.0;
   }
-  
   for (j = 0; j < lastcol - firstcol + 1; j++) {
     q[j] = 0.0;
     z[j] = 0.0;
     r[j] = 0.0;
     p[j] = 0.0;
   }
-  */
+
   zeta = 0.0;
 
   //---------------------------------------------------------------------
@@ -232,7 +221,7 @@ int main(int argc, char *argv[])
   // Main Iteration for inverse power method
   //---->
   //---------------------------------------------------------------------
-  timeron = 0;
+  timeron = 1;
   for (it = 1; it <= NITER; it++) {
     //---------------------------------------------------------------------
     // The call to the conjugate gradient routine:
@@ -241,6 +230,9 @@ int main(int argc, char *argv[])
     conj_grad(colidx, rowstr, x, z, a, p, q, r, &rnorm);
     if (timeron) timer_stop(T_conj_grad);
     
+    t = timer_read(T_conj_grad);
+    printf("\n\nExecution time : %lf seconds\n\n", t);
+
     //---------------------------------------------------------------------
     // zeta = shift + 1/(x.z)
     // So, first: (x.z)
@@ -249,12 +241,10 @@ int main(int argc, char *argv[])
     //---------------------------------------------------------------------
     norm_temp1 = 0.0;
     norm_temp2 = 0.0;
-    
     for (j = 0; j < lastcol - firstcol + 1; j++) {
-      norm_temp1 += x[j]*z[j];
-      norm_temp2 += z[j]*z[j];
+      norm_temp1 = norm_temp1 + x[j]*z[j];
+      norm_temp2 = norm_temp2 + z[j]*z[j];
     }
-
 
     norm_temp2 = 1.0 / sqrt(norm_temp2);
 
@@ -266,7 +256,6 @@ int main(int argc, char *argv[])
     //---------------------------------------------------------------------
     // Normalize z to obtain x
     //---------------------------------------------------------------------
-    #pragma omp parallel for
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       x[j] = norm_temp2 * z[j];
     }
@@ -325,7 +314,6 @@ static void conj_grad(int colidx[],
   //---------------------------------------------------------------------
   // Initialize the CG algorithm:
   //---------------------------------------------------------------------
-  #pragma omp parallel for
   for (j = 0; j < naa+1; j++) {
     q[j] = 0.0;
     z[j] = 0.0;
@@ -358,9 +346,7 @@ static void conj_grad(int colidx[],
     //       unrolled-by-two version is some 10% faster.  
     //       The unrolled-by-8 version below is significantly faster
     //       on the Cray t3d - overall speed of code is 1.5 times faster.
-    
-    d = 0.0;
-    #pragma omp parallel for
+
     for (j = 0; j < lastrow - firstrow + 1; j++) {
       sum = 0.0;
       for (k = rowstr[j]; k < rowstr[j+1]; k++) {
@@ -371,9 +357,8 @@ static void conj_grad(int colidx[],
 
     //---------------------------------------------------------------------
     // Obtain p.q
-    //---------------------------------------------------------------------i
-    //d = 0.0;
-     
+    //---------------------------------------------------------------------
+    d = 0.0;
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       d = d + p[j]*q[j];
     }
@@ -393,12 +378,9 @@ static void conj_grad(int colidx[],
     // and    r = r - alpha*q
     //---------------------------------------------------------------------
     rho = 0.0;
-  
-    #pragma omp parallel for
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       z[j] = z[j] + alpha*p[j];  
       r[j] = r[j] - alpha*q[j];
-      //rho = rho + r[j]*r[j];
     }
             
     //---------------------------------------------------------------------
@@ -417,7 +399,6 @@ static void conj_grad(int colidx[],
     //---------------------------------------------------------------------
     // p = r + beta*p
     //---------------------------------------------------------------------
-    #pragma omp parallel for
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       p[j] = r[j] + beta*p[j];
     }
@@ -429,36 +410,22 @@ static void conj_grad(int colidx[],
   // The partition submatrix-vector multiply
   //---------------------------------------------------------------------
   sum = 0.0;
-  
-
-  
-  #pragma omp parallel for
   for (j = 0; j < lastrow - firstrow + 1; j++) {
     d = 0.0;
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
-      d += a[k]*z[colidx[k]];
+      d = d + a[k]*z[colidx[k]];
     }
     r[j] = d;
   }
 
-  /*
-  timer_start(T_init);
-  timer_stop(T_init);
-
-  printf("2------ Initialization time = %15.3f seconds\n", timer_read(T_init));
-  */
-
   //---------------------------------------------------------------------
   // At this point, r contains A.z
   //---------------------------------------------------------------------
-  
-  
-  #pragma omp parallel for reduction(+:d, sum)
   for (j = 0; j < lastcol-firstcol+1; j++) {
     d   = x[j] - r[j];
     sum = sum + d*d;
   }
-  
+
   *rnorm = sqrt(sum);
 }
 
@@ -610,7 +577,6 @@ static void sparse(double a[],
   //---------------------------------------------------------------------
   // ... preload data pages
   //---------------------------------------------------------------------
-  #pragma omp parallel for
   for (j = 0; j < nrows; j++) {
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
       a[k] = 0.0;
@@ -626,7 +592,6 @@ static void sparse(double a[],
   ratio = pow(rcond, (1.0 / (double)(n)));
 
   for (i = 0; i < n; i++) {
-    #pragma omp parallel for
     for (nza = 0; nza < arow[i]; nza++) {
       j = acol[i][nza];
 

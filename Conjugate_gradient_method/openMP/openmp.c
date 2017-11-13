@@ -5,7 +5,7 @@ static long num_steps = 100000000;
 double step;
 #define NUM_THREADS 4
 
-void main () {
+int main () {
 	/*
 	int i, nthreads;
 	double x, pi, sum[NUM_THREADS];
@@ -31,20 +31,18 @@ void main () {
 
 	printf("%.10lf\n", pi);
 	*/
-	int i,j,k, z[3];
-	z[0] = 10;
-	z[1] = 11;
-	z[2] = 13;
-	#pragma omp parallel for private(j)
-	for(i=0; i<3; i++)
+	int i,j,k=0, z[3];
+	z[0] = 1;
+	z[1] = 5;
+	z[2] = 10;
+	#pragma omp parallel for reduction (+:k)
+	for(i=1; i<=100; i++)
 	{
-		k = 0;
-		for(j=0; j<3; j++)
-		{
-			k += j*z[j];
-		}
-		printf("%d\n", k);
+		k+=i;
 	}
+	printf("%d\n", k);
+
+	return 0;
 }
 
 
