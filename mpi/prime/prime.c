@@ -1,33 +1,42 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-int isprime ( int n ) {
-	int i , squareroot ;
-	if (n >10) {
-		squareroot = ( int ) sqrt ( n ) ;
-		for ( i =3; i <= squareroot ; i = i +2)
-			if (( n % i ) ==0)
-				return 0;
-		return 1;
-	}
-	else
-		return 0;
+#include<stdio.h>
+#include<stdlib.h>
+int Pow(long long x, int n, long long mod) {
+    long long Ans = 1, t = x;
+    while(n) {
+        if(n&1)
+            Ans *= t, Ans %= mod;
+        t *= t, t %= mod, n >>= 1;
+    }
+    return (int)Ans;
 }
-int main ( int argc , char * argv [])
-{
-	int pc , /* prime counter */
+
+int JudgePrime(int n) {
+    if(n == 2 || n == 3)    return 1;
+    if(n == 1)    return 0;
+    if(!(n&1))    return 0;
+    
+    int a, x, flag = 1, t;
+    x = rand()%(n-4)+2;
+    t = Pow(x, n-1, n);
+    if(t != 1)    return 0;
+    
+    return 1;
+}
+
+int main() {
+    long long int pc , /* prime counter */
 	    foundone ; /* most recent prime found */
 	long long int n , limit ;
 	sscanf(argv[1], "%llu", &limit);
-	printf("Starting. Numbers to be scanned = %lld \n", limit);
-	pc =4; /* Assume (2 ,3 ,5 ,7) are counted here */
+    printf("Starting. Numbers to be scanned = %lld \n", limit);
+
 	for (n =11; n <= limit ; n = n +2) {
-		if ( isprime ( n ) ) {
+		if ( JudgePrime ( n ) ) {
 			pc ++;
 			foundone = n ;
 		}
 	}
 	printf("Done. Largest prime is %d Total primes %d\n", foundone, pc);
-	return 0;
-}
 
+    return 0;
+}
