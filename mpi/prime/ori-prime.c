@@ -15,7 +15,7 @@ int isprime ( int n ) {
 }
 int main ( int argc , char * argv [])
 {
-	long long int pc , /* prime counter */
+	int pc , /* prime counter */
 	    foundone ; /* most recent prime found */
 	long long int n , limit ;
 	sscanf(argv[1], "%llu", &limit);
@@ -30,4 +30,5 @@ int main ( int argc , char * argv [])
 	printf("Done. Largest prime is %d Total primes %d\n", foundone, pc);
 	return 0;
 }
+
 
